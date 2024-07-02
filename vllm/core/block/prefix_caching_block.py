@@ -64,6 +64,7 @@ class PrefixCachingBlockAllocator(BlockAllocator):
         block_size: int,
         block_ids: Optional[Iterable[int]] = None,
         eviction_policy: EvictionPolicy = EvictionPolicy.LRU,
+        cache_tokens_hit: int = 0,
     ):
         if block_ids is None:
             block_ids = range(num_blocks)
@@ -73,6 +74,8 @@ class PrefixCachingBlockAllocator(BlockAllocator):
         # A mapping of prefix hash to block index. All blocks which have a
         # prefix hash will be in this dict, even if they have refcount 0.
         self._cached_blocks: Dict[PrefixHash, BlockId] = {}
+
+        self._cache_tokens_hit = cache_tokens_hit
 
         # Used to track status of each physical block id
         self._block_tracker: Dict[BlockId, BlockTracker] = {}
@@ -106,6 +109,13 @@ class PrefixCachingBlockAllocator(BlockAllocator):
 
         self._cow_tracker = CopyOnWriteTracker(
             refcounter=self._refcounter.as_readonly())
+        
+    def _incr_cache_tokens_hit(self, increment):
+        self._cache_tokens_hit += increment
+    
+    @property
+    def cache_tokens_hit(self):
+        return self._cache_tokens_hit
 
     # Implements Block.Factory.
     def _create_block(
@@ -155,6 +165,7 @@ class PrefixCachingBlockAllocator(BlockAllocator):
 
         cached_block_id = self._cached_blocks.get(block.content_hash, None)
         if cached_block_id is not None:
+            self._incr_cache_tokens_hit(block.num_tokens_total)
             block.block_id = cached_block_id
             self._incr_refcount_cached_block(block)
             return block

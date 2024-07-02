@@ -12,6 +12,7 @@ from vllm.config import (CacheConfig, DecodingConfig, DeviceConfig, LoadConfig,
                          VisionLanguageConfig)
 from vllm.core.scheduler import (ScheduledSequenceGroup, Scheduler,
                                  SchedulerOutputs)
+from vllm.core.block.prefix_caching_block import PrefixCachingBlockAllocator
 from vllm.engine.arg_utils import EngineArgs
 from vllm.engine.metrics import (LoggingStatLogger, PrometheusStatLogger,
                                  StatLoggerBase, Stats)
@@ -1029,6 +1030,13 @@ class LLMEngine:
             num_generation_tokens_iter = (
                 scheduler_outputs.num_batched_tokens - num_prompt_tokens_iter +
                 num_generation_tokens_from_prefill_groups)
+            
+        cache_tokens_hit_iter = 0
+        for scheduler in self.scheduler:
+            if isinstance(scheduler.block_manager.block_allocator, PrefixCachingBlockAllocator):
+                cache_tokens_hit_iter += scheduler.block_manager.block_allocator.cache_tokens_hit()
+        
+        cache_token_hr_iter = (cache_tokens_hit_iter / num_prompt_tokens_iter)
 
         # Spec decode, if enabled, emits specialized metrics from the worker in
         # sampler output.
@@ -1056,6 +1064,7 @@ class LLMEngine:
             time_per_output_tokens_iter=time_per_output_tokens_iter,
             spec_decode_metrics=spec_decode_metrics,
             num_preemption_iter=num_preemption_iter,
+            cache_token_hr_iter=cache_token_hr_iter,
 
             # Request stats
             #   Latency

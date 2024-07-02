@@ -214,6 +214,7 @@ class Stats:
     time_to_first_tokens_iter: List[float]
     time_per_output_tokens_iter: List[float]
     num_preemption_iter: int
+    cache_token_hr_iter: float
 
     # Request stats (should have _requests suffix)
     #   Latency
@@ -298,6 +299,7 @@ class LoggingStatLogger(StatLoggerBase):
                 "Running: %d reqs, Swapped: %d reqs, "
                 "Pending: %d reqs, GPU KV cache usage: %.1f%%, "
                 "CPU KV cache usage: %.1f%%.",
+                "Prefix cache token hit rate: %.1f%%",
                 prompt_throughput,
                 generation_throughput,
                 stats.num_running_sys,
@@ -305,6 +307,7 @@ class LoggingStatLogger(StatLoggerBase):
                 stats.num_waiting_sys,
                 stats.gpu_cache_usage_sys * 100,
                 stats.cpu_cache_usage_sys * 100,
+                stats.cache_token_hr_iter * 100,
             )
 
             # Reset tracked stats for next interval.
