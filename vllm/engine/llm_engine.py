@@ -227,6 +227,7 @@ class LLMEngine:
         self.observability_config = observability_config or ObservabilityConfig(
         )
         self.log_stats = log_stats
+        self.lifetime_input_tokens = 0
 
         if not self.model_config.skip_tokenizer_init:
             self.tokenizer = self._init_tokenizer()
@@ -1039,17 +1040,8 @@ class LLMEngine:
                 cache_tokens_hit += scheduler.block_manager.block_allocator.get_cache_tokens_hit()
         
         cache_token_hr = 0
-        if num_prompt_tokens_requests:
-            total = sum(num_prompt_tokens_requests)
-            if total:
-                logger.info("reached: %d", total)
-                cache_token_hr = float((cache_tokens_hit / total))
-            else:
-                logger.info("did not reach (1)")
-        if scheduler_outputs and scheduler_outputs.num_batched_tokens:
-            cache_token_hr = float((cache_tokens_hit / scheduler_outputs.num_batched_tokens))
-        else:
-            logger.info("did not reach (2)")
+        if self.lifetime_input_tokens:
+            cache_token_hr = float((cache_tokens_hit / self.lifetime_input_tokens))
 
         # Spec decode, if enabled, emits specialized metrics from the worker in
         # sampler output.

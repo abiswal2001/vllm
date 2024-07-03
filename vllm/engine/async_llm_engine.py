@@ -277,6 +277,8 @@ class _AsyncLLMEngine(LLMEngine):
         else:
             prompt_token_ids = inputs["prompt_token_ids"]
 
+        self.lifetime_input_tokens += len(prompt_token_ids)
+
         llm_inputs = LLMInputs(prompt_token_ids=prompt_token_ids,
                                prompt=inputs.get("prompt"),
                                multi_modal_data=inputs.get("multi_modal_data"))

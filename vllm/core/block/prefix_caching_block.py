@@ -165,7 +165,6 @@ class PrefixCachingBlockAllocator(BlockAllocator):
 
         cached_block_id = self._cached_blocks.get(block.content_hash, None)
         if cached_block_id is not None:
-            self._incr_cache_tokens_hit(block.num_tokens_total)
             block.block_id = cached_block_id
             self._incr_refcount_cached_block(block)
             return block
@@ -229,6 +228,8 @@ class PrefixCachingBlockAllocator(BlockAllocator):
                 self.evictor.remove(block_id)
 
             self._track_block_id(block_id, computed=True)
+        if refcount > 1:
+            self._incr_cache_tokens_hit(len(block.token_ids))
 
     def _decr_refcount_cached_block(self, block: Block) -> None:
         # Ensure this is immutable/cached block
