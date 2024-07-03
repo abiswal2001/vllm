@@ -114,7 +114,7 @@ class PrefixCachingBlockAllocator(BlockAllocator):
         self._cache_tokens_hit += increment
     
     @property
-    def cache_tokens_hit(self):
+    def cache_tokens_hit(self) -> int:
         return self._cache_tokens_hit
 
     # Implements Block.Factory.

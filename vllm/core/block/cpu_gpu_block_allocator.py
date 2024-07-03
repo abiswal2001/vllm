@@ -202,6 +202,9 @@ class CpuGpuBlockAllocator(DeviceAwareBlockAllocator):
         allocator = self._block_ids_to_allocator[block_id]
         return allocator.fork(last_block)
 
+    def get_cache_tokens_hit(self) -> int:
+        return self._allocators[Device.GPU].cache_tokens_hit
+
     def get_num_free_blocks(self, device: Device) -> int:
         """Returns the number of free blocks available on the specified device.
 

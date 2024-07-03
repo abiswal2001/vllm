@@ -12,6 +12,7 @@ from vllm.config import (CacheConfig, DecodingConfig, DeviceConfig, LoadConfig,
                          VisionLanguageConfig)
 from vllm.core.scheduler import (ScheduledSequenceGroup, Scheduler,
                                  SchedulerOutputs)
+from vllm.core.block_manager_v2 import BlockSpaceManagerV2
 from vllm.core.block.prefix_caching_block import PrefixCachingBlockAllocator
 from vllm.engine.arg_utils import EngineArgs
 from vllm.engine.metrics import (LoggingStatLogger, PrometheusStatLogger,
@@ -1031,12 +1032,24 @@ class LLMEngine:
                 scheduler_outputs.num_batched_tokens - num_prompt_tokens_iter +
                 num_generation_tokens_from_prefill_groups)
             
-        cache_tokens_hit_iter = 0
+        cache_tokens_hit = 0
         for scheduler in self.scheduler:
-            if isinstance(scheduler.block_manager.block_allocator, PrefixCachingBlockAllocator):
-                cache_tokens_hit_iter += scheduler.block_manager.block_allocator.cache_tokens_hit()
+            bm = scheduler.block_manager
+            if hasattr(bm, "block_allocator"):
+                cache_tokens_hit += scheduler.block_manager.block_allocator.get_cache_tokens_hit()
         
-        cache_token_hr_iter = (cache_tokens_hit_iter / num_prompt_tokens_iter)
+        cache_token_hr = 0
+        if num_prompt_tokens_requests:
+            total = sum(num_prompt_tokens_requests)
+            if total:
+                logger.info("reached: %d", total)
+                cache_token_hr = float((cache_tokens_hit / total))
+            else:
+                logger.info("did not reach (1)")
+        if scheduler_outputs and scheduler_outputs.num_batched_tokens:
+            cache_token_hr = float((cache_tokens_hit / scheduler_outputs.num_batched_tokens))
+        else:
+            logger.info("did not reach (2)")
 
         # Spec decode, if enabled, emits specialized metrics from the worker in
         # sampler output.
@@ -1064,7 +1077,6 @@ class LLMEngine:
             time_per_output_tokens_iter=time_per_output_tokens_iter,
             spec_decode_metrics=spec_decode_metrics,
             num_preemption_iter=num_preemption_iter,
-            cache_token_hr_iter=cache_token_hr_iter,
 
             # Request stats
             #   Latency
@@ -1072,6 +1084,8 @@ class LLMEngine:
             #   Metadata
             num_prompt_tokens_requests=num_prompt_tokens_requests,
             num_generation_tokens_requests=num_generation_tokens_requests,
+            cache_token_hr=cache_token_hr,
+            cache_tokens_hit=cache_tokens_hit,
             best_of_requests=best_of_requests,
             n_requests=n_requests,
             finished_reason_requests=finished_reason_requests,
