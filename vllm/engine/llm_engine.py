@@ -1038,6 +1038,8 @@ class LLMEngine:
             bm = scheduler.block_manager
             if hasattr(bm, "block_allocator"):
                 cache_tokens_hit += scheduler.block_manager.block_allocator.get_cache_tokens_hit()
+            elif hasattr(bm, "gpu_allocator"):
+                cache_tokens_hit += scheduler.block_manager.gpu_allocator.get_cache_tokens_hit()
         
         cache_token_hr = 0
         if self.lifetime_input_tokens:

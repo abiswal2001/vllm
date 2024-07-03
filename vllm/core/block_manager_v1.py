@@ -80,6 +80,7 @@ class CachedBlockAllocator(BlockAllocatorBase):
 
         self.current_num_blocks = 0
         self.cached_blocks: Dict[int, PhysicalTokenBlock] = {}
+        self.cache_tokens_hit = 0
 
         self.evictor: Evictor = make_evictor(eviction_policy)
 
@@ -115,10 +116,12 @@ class CachedBlockAllocator(BlockAllocatorBase):
             return block
         if block_hash not in self.cached_blocks:
             self.cached_blocks[block_hash] = self.allocate_block(
-                block_hash, num_hashed_tokens)
+                block_hash, num_hashed_tokens)       
         block = self.cached_blocks[block_hash]
         assert block.block_hash == block_hash
         block.ref_count += 1
+        if self.cached_blocks[block_hash].ref_count > 1:
+            self.cache_tokens_hit += self.block_size
         return block
 
     def free(self, block: PhysicalTokenBlock) -> None:
@@ -138,6 +141,9 @@ class CachedBlockAllocator(BlockAllocatorBase):
 
     def get_num_total_blocks(self) -> int:
         return self.num_blocks
+
+    def get_cache_tokens_hit(self) -> int:
+        return self.cache_tokens_hit
 
     def contains_block(self, block_hash: int) -> bool:
         return block_hash in self.cached_blocks or block_hash in self.evictor
